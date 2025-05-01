@@ -12,12 +12,8 @@ const STORE_ID = "83B07D9AFC5046A9A45E";
 const RESPONSE_URL = "https://privatbot.onrender.com/payment/callback";
 const REDIRECT_URL = "https://t.me/master_izobiliia_bot";
 
-function buildProductStringPlain(product) {
-  return `[{"name":"${product.name}","count":${product.count},"price":${product.price}}]`;
-}
-
 function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
-  const amountStr = String(amount * 100);
+  const amountStr = (amount * 100).toFixed(0);
   const productStr = buildProductStringPlain(product);
   const base = PASSWORD +
     STORE_ID +

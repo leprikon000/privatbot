@@ -10,19 +10,23 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const PASSWORD = "9a2d8957ab524df2889c0cca0f288f5e";
 const STORE_ID = "83B07D9AFC5046A9A45E";
 const RESPONSE_URL = "https://privatbot.onrender.com/payment/callback";
-const REDIRECT_URL = "https://t.me/ТВОЙ_БОТ"; // замени на своего бота
+const REDIRECT_URL = "https://t.me/master_izobiliia_bot"; // исправлено на реальный
+
+function formatProducts(products) {
+  return `[{"name":"${products[0].name}","count":${products[0].count},"price":${products[0].price}}]`;
+}
 
 function generateSignature(data) {
-  const productsString = JSON.stringify(data.products).replace(/\s+/g, "");
+  const productsStr = formatProducts(data.products);
   const baseString = PASSWORD +
     STORE_ID +
     data.orderId +
-    data.amount * 100 +
+    (data.amount * 100) +
     data.partsCount +
     data.merchantType +
     RESPONSE_URL +
     REDIRECT_URL +
-    productsString +
+    productsStr +
     PASSWORD;
 
   const sha1 = crypto.createHash("sha1").update(baseString).digest("base64");
@@ -32,19 +36,19 @@ function generateSignature(data) {
 app.post("/create-payment", async (req, res) => {
   const { orderId, amount, partsCount, tariffName } = req.body;
 
+  const products = [{
+    name: `Курс МАСТЕР ИЗОБИЛИЯ - ${tariffName}`,
+    count: 1,
+    price: amount
+  }];
+
   const paymentData = {
     storeId: STORE_ID,
     orderId,
     amount,
     partsCount,
     merchantType: "PP",
-    products: [
-      {
-        name: `Курс МАСТЕР ИЗОБИЛИЯ - ${tariffName}`,
-        count: 1,
-        price: amount
-      }
-    ],
+    products,
     responseUrl: RESPONSE_URL,
     redirectUrl: REDIRECT_URL
   };

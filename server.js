@@ -1,4 +1,3 @@
-
 const express = require("express");
 const crypto = require("crypto");
 const axios = require("axios");
@@ -12,8 +11,14 @@ const STORE_ID = "83B07D9AFC5046A9A45E";
 const RESPONSE_URL = "https://privatbot.onrender.com/payment/callback";
 const REDIRECT_URL = "https://t.me/master_izobiliia_bot";
 
+// ✅ Функция, из-за которой была ошибка
+function buildProductStringPlain(product) {
+  return `[{"name":"${product.name}","count":${product.count},"price":${product.price}}]`;
+}
+
+// 🔐 Подпись запроса
 function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
-  const amountStr = (amount * 100).toFixed(0);
+  const amountStr = String(amount * 100);
   const productStr = buildProductStringPlain(product);
   const base = PASSWORD +
     STORE_ID +
@@ -30,6 +35,7 @@ function generateSignature({ orderId, amount, partsCount, merchantType, product 
   return signature;
 }
 
+// 🔁 Создание платежа
 app.post("/create-payment", async (req, res) => {
   console.log("⏳ Запрос получен на /create-payment");
 
@@ -93,6 +99,7 @@ app.post("/create-payment", async (req, res) => {
   }
 });
 
+// 🔔 Callback от ПриватБанка
 app.post("/payment/callback", async (req, res) => {
   const data = req.body;
 
@@ -115,5 +122,6 @@ app.post("/payment/callback", async (req, res) => {
   res.send("OK");
 });
 
-const PORT = process.env.PORT;
+// 🌐 Запуск сервера
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log("🚀 Server running on port", PORT));

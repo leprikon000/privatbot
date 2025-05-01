@@ -10,37 +10,36 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const PASSWORD = "9a2d8957ab524df2889c0cca0f288f5e";
 const STORE_ID = "83B07D9AFC5046A9A45E";
 const RESPONSE_URL = "https://privatbot.onrender.com/payment/callback";
-const REDIRECT_URL = "https://t.me/master_izobiliia_bot"; // исправлено на реальный
+const REDIRECT_URL = "https://t.me/master_izobiliia_bot";
 
-function formatProducts(products) {
-  return `[{"name":"${products[0].name}","count":${products[0].count},"price":${products[0].price}}]`;
-}
+function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
+  const amountFormatted = (amount * 100).toFixed(0);
+  const productString = `[{"name":"${product.name}","count":${product.count},"price":${product.price}}]`;
 
-function generateSignature(data) {
-  const productsStr = formatProducts(data.products);
-  const baseString = PASSWORD +
+  const signatureBase =
+    PASSWORD +
     STORE_ID +
-    data.orderId +
-    (data.amount * 100) +
-    data.partsCount +
-    data.merchantType +
+    orderId +
+    amountFormatted +
+    partsCount +
+    merchantType +
     RESPONSE_URL +
     REDIRECT_URL +
-    productsStr +
+    productString +
     PASSWORD;
 
-  const sha1 = crypto.createHash("sha1").update(baseString).digest("base64");
+  const sha1 = crypto.createHash("sha1").update(signatureBase).digest("base64");
   return sha1;
 }
 
 app.post("/create-payment", async (req, res) => {
   const { orderId, amount, partsCount, tariffName } = req.body;
 
-  const products = [{
+  const product = {
     name: `Курс МАСТЕР ИЗОБИЛИЯ - ${tariffName}`,
     count: 1,
     price: amount
-  }];
+  };
 
   const paymentData = {
     storeId: STORE_ID,
@@ -48,12 +47,19 @@ app.post("/create-payment", async (req, res) => {
     amount,
     partsCount,
     merchantType: "PP",
-    products,
+    products: [product],
     responseUrl: RESPONSE_URL,
     redirectUrl: REDIRECT_URL
   };
 
-  const signature = generateSignature(paymentData);
+  const signature = generateSignature({
+    orderId,
+    amount,
+    partsCount,
+    merchantType: "PP",
+    product
+  });
+
   paymentData.signature = signature;
 
   console.log("👉 Отправка данных в ПриватБанк:");

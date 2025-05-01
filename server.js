@@ -52,6 +52,9 @@ app.post("/create-payment", async (req, res) => {
   const signature = generateSignature(paymentData);
   paymentData.signature = signature;
 
+  console.log("👉 Отправка данных в ПриватБанк:");
+  console.log(JSON.stringify(paymentData, null, 2));
+
   try {
     const response = await axios.post("https://payparts2.privatbank.ua/ipp/v2/payment/create", paymentData, {
       headers: {
@@ -60,9 +63,15 @@ app.post("/create-payment", async (req, res) => {
       }
     });
 
-    res.json({ success: true, token: response.data.token });
+    console.log("✅ Ответ от ПриватБанка:");
+    console.log(response.data);
+
+    res.json({
+      success: true,
+      token: response.data.token
+    });
   } catch (error) {
-    console.error("Ошибка при создании оплаты:", error.response?.data || error.message);
+    console.error("❌ Ошибка при создании оплаты:", error.response?.data || error.message);
     res.status(500).json({ success: false, error: "Ошибка создания оплаты" });
   }
 });
@@ -74,10 +83,12 @@ app.post("/payment/callback", async (req, res) => {
   const expectedSignature = crypto.createHash("sha1").update(signatureBase).digest("base64");
 
   if (expectedSignature !== data.signature) {
+    console.warn("❌ Неверная подпись от ПриватБанка");
     return res.status(403).send("Invalid signature");
   }
 
   if (data.paymentState === "SUCCESS") {
+    console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       chat_id: data.orderId,
       text: "✅ Оплата прошла успешно! Вот доступ к курсу: https://твой-сайт/доступ"

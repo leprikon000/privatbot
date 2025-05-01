@@ -18,9 +18,16 @@ function buildProductStringPlain(product) {
 
 // 🔐 Подпись запроса
 function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
-  const amountStr = String(amount * 100);
-  const productStr = buildProductStringPlain(product);
-  const base = PASSWORD +
+  const amountStr = String(amount * 100); // например, 16600 => 1660000 копеек, но скорее всего 16600 уже в копейках
+  const priceStr = String(product.price * 100); // без плавающей точки
+
+  const productString =
+    product.name +
+    product.count +
+    priceStr;
+
+  const baseString =
+    PASSWORD +
     STORE_ID +
     orderId +
     amountStr +
@@ -28,10 +35,10 @@ function generateSignature({ orderId, amount, partsCount, merchantType, product 
     merchantType +
     RESPONSE_URL +
     REDIRECT_URL +
-    productStr +
+    productString +
     PASSWORD;
 
-  const signature = crypto.createHash("sha1").update(base).digest("base64");
+  const signature = crypto.createHash("sha1").update(baseString).digest("base64");
   return signature;
 }
 

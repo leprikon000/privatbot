@@ -12,13 +12,13 @@ const STORE_ID = "83B07D9AFC5046A9A45E";
 const RESPONSE_URL = "https://privatbot.onrender.com/payment/callback";
 const REDIRECT_URL = "https://t.me/master_izobiliia_bot";
 
-function buildProductString(product) {
-  return `[{\"name\":\"${product.name}\",\"count\":${product.count},\"price\":${product.price}}]`;
+function buildProductStringPlain(product) {
+  return `[{"name":"${product.name}","count":${product.count},"price":${product.price}}]`;
 }
 
 function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
   const amountStr = String(amount * 100);
-  const productStr = buildProductString(product);
+  const productStr = buildProductStringPlain(product);
   const base = PASSWORD +
     STORE_ID +
     orderId +
@@ -43,7 +43,7 @@ app.post("/create-payment", async (req, res) => {
     price: amount
   };
 
-  const productString = JSON.parse(buildProductString(product)); // для products поля
+  const productJson = JSON.parse(buildProductStringPlain(product));
 
   const paymentData = {
     storeId: STORE_ID,
@@ -51,7 +51,7 @@ app.post("/create-payment", async (req, res) => {
     amount,
     partsCount,
     merchantType: "PP",
-    products: productString,
+    products: productJson,
     responseUrl: RESPONSE_URL,
     redirectUrl: REDIRECT_URL
   };

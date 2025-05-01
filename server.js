@@ -35,7 +35,14 @@ function generateSignature({ orderId, amount, partsCount, merchantType, product 
 }
 
 app.post("/create-payment", async (req, res) => {
+  console.log("⏳ Запрос получен на /create-payment");
+
   const { orderId, amount, partsCount, tariffName } = req.body;
+
+  if (!orderId || !amount || !partsCount || !tariffName) {
+    console.error("❌ Не хватает параметров");
+    return res.status(400).json({ success: false, error: "Missing parameters" });
+  }
 
   const product = {
     name: `Курс МАСТЕР ИЗОБИЛИЯ - ${tariffName}`,

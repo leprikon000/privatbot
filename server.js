@@ -120,14 +120,42 @@ app.post("/payment/callback", async (req, res) => {
 
   if (data.paymentState === "SUCCESS") {
     console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: data.orderId,
-      text: "✅ Оплата прошла успешно! Вот доступ к курсу: https://твой-сайт/доступ"
-    });
+
+    // 🛠 Получаем access_token от SendPulse
+    try {
+      const authResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
+        grant_type: "client_credentials",
+        client_id: "d5615cc69aee8a5f67251bb12bf8231c",
+        client_secret: "2a0579a6ac7705c341a86b92f8a8bac9"
+      });
+
+      const accessToken = authResponse.data.access_token;
+
+      // 🔄 Обновляем поле access_granted через API
+      await axios.patch(
+        `https://api.sendpulse.com/contacts?email=${data.orderId}`,
+        {
+          variables: {
+            access_granted: "true"
+          }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      console.log("✅ Переменная access_granted успешно обновлена в SendPulse");
+    } catch (err) {
+      console.error("❌ Ошибка при обновлении SendPulse:", err.response?.data || err.message);
+    }
   }
 
   res.send("OK");
 });
+
 
 // 🌐 Запуск сервера
 const PORT = process.env.PORT || 10000;

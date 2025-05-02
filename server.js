@@ -30,13 +30,17 @@ function generateSignature({ orderId, amount, partsCount, merchantType, product 
 
 // Get OAuth token from SendPulse
 async function getSendPulseToken() {
-  const res = await axios.post("https://api.sendpulse.com/oauth/access_token", {
-    grant_type:    "client_credentials",
-    client_id:     SENDPULSE_CLIENT_ID,
-    client_secret: SENDPULSE_CLIENT_SECRET
-  });
+  const res = await axios.post(
+    "https://api.sendpulse.com/oauth/access_token",
+    {
+      grant_type:    "client_credentials",
+      client_id:     SENDPULSE_CLIENT_ID,
+      client_secret: SENDPULSE_CLIENT_SECRET
+    }
+  );
   return res.data.access_token;
 }
+
 
 // Find contact_id by user_id via getByVariable
 async function getContactIdByUserId(userId, accessToken) {

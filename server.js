@@ -100,26 +100,8 @@ app.post("/payment/callback", async (req, res) => {
 
       const accessToken = tokenResponse.data.access_token;
 
-      // Найти контакт по переменной user_id
-      const searchResponse = await axios.get("https://api.sendpulse.com/customers?limit=100", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-
-      const contactList = searchResponse.data.data;
-      const contact = contactList.find(c => c.variables?.user_id == userId);
-
-      if (!contact) {
-        console.error("❌ Контакт с таким user_id не найден");
-        return res.status(404).send("Contact not found");
-      }
-
-      const contactId = contact.id;
-
-      // Обновление переменной
-      await axios.post("https://api.sendpulse.com/customers/set-variable", {
-        contact_id: contactId,
+      await axios.post("https://api.sendpulse.com/telegram/contacts/setVariable", {
+        contact_id: userId,
         variable: {
           name: "access_granted",
           value: "true"
@@ -131,7 +113,7 @@ app.post("/payment/callback", async (req, res) => {
         }
       });
 
-      console.log("✅ Переменная access_granted обновлена для contact_id:", contactId);
+      console.log("✅ access_granted обновлена для user_id:", userId);
     } catch (error) {
       console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
     }

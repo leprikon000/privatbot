@@ -136,20 +136,21 @@ app.post("/payment/callback", async (req, res) => {
 
       // обновляем переменную access_granted=true для user_id = telegramId
       await axios.put(
-        'https://api.sendpulse.com/bot/6810f00c85e77658ef0b4a45/contacts',
-        {
-          contact_id: telegramId,
-          variables: {
-            access_granted: true
-          }
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+  `https://api.sendpulse.com/bot/6810f00c85e77658ef0b4a45/contacts/variables`,
+  {
+    user_id: telegramId,
+    variables: {
+      access_granted: true
+    }
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      'Content-Type': 'application/json'
+    }
+  }
+);
+
 
       console.log("✅ Переменная access_granted обновлена в SendPulse");
     } catch (err) {

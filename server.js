@@ -52,66 +52,31 @@ async function getContactIdByUserId(userId, accessToken) {
   return list.length ? list[0].id : null;
 }
 
-// Set variable access_granted = true, с fallback на variable_id
-// === helper ===
+// Set variable access_granted = true (простой режим с логами)
 async function grantAccess(contactId, accessToken) {
-  const config = {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
-    }
-  };
+  console.log("🔔 grantAccess called, contactId =", contactId);
 
-  // — ШАГ A: Пробуем по имени —
-  let payload = {
+  const payload = {
     contact_id:     contactId,
     variable_name:  "access_granted",
     variable_value: "true"
   };
-  console.log("→ TRY by name payload:", JSON.stringify(payload));
-  try {
-    const res = await axios.post(
-      "https://api.sendpulse.com/telegram/contacts/setVariable",
-      payload,
-      config
-    );
-    console.log("← OK by name:", res.status, res.data);
-    return;
-  } catch (err) {
-    console.warn("⚠️ Failed by name:", err.response?.data || err.message);
-  }
-
-  // — ШАГ B: Fallback по ID —
-  console.log("→ Fetching variables…");
-  const varsRes = await axios.get(
-    "https://api.sendpulse.com/telegram/variables",
-    {
-      params: { bot_id: BOT_ID },
-      headers: { Authorization: `Bearer ${accessToken}` }
-    }
-  );
-  const varObj = varsRes.data.data.find(v => v.name === "access_granted");
-  if (!varObj) {
-    console.error("❌ Variable access_granted not found");
-    return;
-  }
-
-  payload = {
-    contact_id:     contactId,
-    variable_id:    varObj.id,
-    variable_value: "true"
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json"
   };
-  console.log("→ TRY by id payload:", JSON.stringify(payload));
-  try {
-    const res2 = await axios.post(
-      "https://api.sendpulse.com/telegram/contacts/setVariable",
-      payload,
-      config
-    );
-    console.log("← OK by id:", res2.status, res2.data);
-  } catch (err) {
-    console.error("❌ Failed by id:", err.response?.data || err.message);
-  }
+
+  console.log("→ setVariable payload:", JSON.stringify(payload));
+  console.log("→ setVariable headers:", JSON.stringify(headers));
+
+  const res = await axios.post(
+    "https://api.sendpulse.com/telegram/contacts/setVariable",
+    payload,
+    { headers }
+  );
+
+  console.log("← setVariable response status:", res.status);
+  console.log("← setVariable response data:", JSON.stringify(res.data));
 }
 
 

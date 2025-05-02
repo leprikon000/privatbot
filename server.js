@@ -110,6 +110,7 @@ app.post("/create-payment", async (req, res) => {
 app.post("/payment/callback", async (req, res) => {
   const data = req.body;
 
+  // Проверка подписи от ПриватБанка
   const signatureBase = PASSWORD + data.storeId + data.orderId + data.paymentState + data.message + PASSWORD;
   const expectedSignature = crypto.createHash("sha1").update(signatureBase).digest("base64");
 
@@ -118,48 +119,44 @@ app.post("/payment/callback", async (req, res) => {
     return res.status(403).send("Invalid signature");
   }
 
+  // Получаем user_id из orderId
+  const userId = data.orderId.split("_")[0];
+
   if (data.paymentState === "SUCCESS") {
     console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
 
-    // 🟢 Обновляем переменную access_granted в SendPulse
-    const [telegramId] = data.orderId.split("_"); // достаём Telegram ID из orderId
-
     try {
-      // получаем access_token от SendPulse
-      const authResponse = await axios.post('https://api.sendpulse.com/oauth/access_token', {
-        grant_type: 'client_credentials',
-        client_id: 'd5615cc69aee8a5f67251bb12bf8231c',
-        client_secret: '2a0579a6ac7705c341a86b92f8a8bac9'
+      // Получаем access_token SendPulse
+      const tokenResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
+        grant_type: "client_credentials",
+        client_id: "d5615cc69aee8a5f67251bb12bf8231c",
+        client_secret: "2a0579a6ac7705c341a86b92f8a8bac9"
       });
 
-      const access_token = authResponse.data.access_token;
+      const accessToken = tokenResponse.data.access_token;
 
-      // обновляем переменную access_granted=true для user_id = telegramId
-      await axios.put(
-  `https://api.sendpulse.com/bot/6810f00c85e77658ef0b4a45/contacts/variables`,
-  {
-    user_id: telegramId,
-    variables: {
-      access_granted: true
-    }
-  },
-  {
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    }
-  }
-);
+      // Обновляем переменную access_granted для user_id
+      await axios.post("https://api.sendpulse.com/customers/set-variable", {
+        contact_id: userId,
+        variable: {
+          name: "access_granted",
+          value: true
+        }
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
 
-
-      console.log("✅ Переменная access_granted обновлена в SendPulse");
-    } catch (err) {
-      console.error("❌ Ошибка при обновлении переменной access_granted:", err.response?.data || err.message);
+      console.log("✅ Переменная access_granted обновлена для user_id:", userId);
+    } catch (error) {
+      console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
     }
   }
 
   res.send("OK");
 });
+
 
 
 

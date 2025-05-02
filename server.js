@@ -126,32 +126,38 @@ app.post("/payment/callback", async (req, res) => {
     console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
 
     try {
-      // Получаем access_token SendPulse
-      const tokenResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
-        grant_type: "client_credentials",
-        client_id: "d5615cc69aee8a5f67251bb12bf8231c",
-        client_secret: "2a0579a6ac7705c341a86b92f8a8bac9"
-      });
+  // Получаем access_token SendPulse
+  const tokenResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
+    grant_type: "client_credentials",
+    client_id: "d5615cc69aee8a5f67251bb12bf8231c",
+    client_secret: "2a0579a6ac7705c341a86b92f8a8bac9"
+  });
 
-      const accessToken = tokenResponse.data.access_token;
+  const accessToken = tokenResponse.data.access_token;
 
-      // Обновляем переменную access_granted для user_id
-      await axios.post("https://api.sendpulse.com/customers/set-variable", {
-        contact_id: userId,
-        variable: {
-          name: "access_granted",
-          value: true
+  // Обновляем переменную access_granted через PATCH-запрос по Telegram user_id
+  await axios.patch(
+    `https://api.sendpulse.com/telegram/contacts/${userId}`,
+    {
+      variables: [
+        {
+          id: "access_granted", // ID переменной в SendPulse
+          value: "true"
         }
-      }, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-
-      console.log("✅ Переменная access_granted обновлена для user_id:", userId);
-    } catch (error) {
-      console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
+      ]
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      }
     }
+  );
+
+  console.log("✅ access_granted успешно обновлена для user_id:", userId);
+} catch (error) {
+  console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
+}
   }
 
   res.send("OK");

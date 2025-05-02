@@ -32,18 +32,21 @@ async function getContactIdByUserId(userId, accessToken) {
 }
 
 async function updateAccessGranted(contactId, accessToken) {
-  await axios.post("https://api.sendpulse.com/customers/set-variable", {
-    contact_id: contactId,
-    variable: {
+  await axios.patch(`https://api.sendpulse.com/telegram/contacts/${userId}`, {
+  variables: [
+    {
       name: "access_granted",
       value: "true"
     }
-  }, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
-    }
-  });
+  ]
+}, {
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+    "bot_id": "6810f00c85e77658ef0b4a45" // ← ОБЯЗАТЕЛЕН!
+  }
+});
+
 }
 
 app.post("/create-payment", async (req, res) => {

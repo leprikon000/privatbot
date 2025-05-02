@@ -53,37 +53,59 @@ async function getContactIdByUserId(userId, accessToken) {
 }
 
 // Set variable access_granted = true
+// Set variable access_granted = true, с fallback на variable_id
 async function grantAccess(contactId, accessToken) {
-  // 1) Собираем объект payload
-  const payload = {
+  // 1) Сначала пробуем по имени
+  let payload = {
     bot_id:         BOT_ID,
     contact_id:     contactId,
     variable_name:  "access_granted",
     variable_value: "true"
   };
 
-  // 2) Собираем объект конфигурации с заголовками
-  const config = {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
+  // 2) Если ошибка повторится — подставим variable_id
+  //    Для этого сначала получим список переменных
+  try {
+    const logPayload = JSON.stringify(payload);
+    console.log("→ TRY setVariable by name:", logPayload);
+    const res = await axios.post(
+      "https://api.sendpulse.com/telegram/contacts/setVariable",
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}`, "Content-Type":"application/json" } }
+    );
+    console.log("← OK by name, status:", res.status);
+    return;
+  } catch (e) {
+    console.warn("⚠️ Не удалось по name, пробуем по ID:", e.response?.data || e.message);
+  }
+
+  // 3) Получаем variable_id для access_granted
+  const varsRes = await axios.get(
+    "https://api.sendpulse.com/telegram/variables",
+    {
+      params: { bot_id: BOT_ID },
+      headers: { Authorization: `Bearer ${accessToken}` }
     }
+  );
+  const varObj = varsRes.data.data.find(v => v.name === "access_granted");
+  if (!varObj) {
+    console.error("❌ Не найдена переменная access_granted в списке variables");
+    return;
+  }
+  payload = {
+    contact_id:     contactId,
+    variable_id:    varObj.id,
+    variable_value: "true"
   };
 
-  // 3) Выводим в лог, что именно пойдёт на SendPulse
-  console.log("→ setVariable payload:", JSON.stringify(payload));
-  console.log("→ setVariable headers:", JSON.stringify(config.headers));
-
-  // 4) Делаем запрос
-  const response = await axios.post(
+  // 4) Логируем и шлём по ID
+  console.log("→ TRY setVariable by id:", JSON.stringify(payload));
+  const finalRes = await axios.post(
     "https://api.sendpulse.com/telegram/contacts/setVariable",
     payload,
-    config
+    { headers: { Authorization: `Bearer ${accessToken}`, "Content-Type":"application/json" } }
   );
-
-  // 5) Лог успеха и тело ответа
-  console.log("← setVariable response status:", response.status);
-  console.log("← setVariable response data:", JSON.stringify(response.data));
+  console.log("← OK by id, status:", finalRes.status);
 }
 
 // === Routes ===

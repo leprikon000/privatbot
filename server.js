@@ -126,7 +126,7 @@ app.post("/payment/callback", async (req, res) => {
     console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
 
     try {
-  // Получаем access_token SendPulse
+  // Получаем access_token
   const tokenResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
     grant_type: "client_credentials",
     client_id: "d5615cc69aee8a5f67251bb12bf8231c",
@@ -135,30 +135,26 @@ app.post("/payment/callback", async (req, res) => {
 
   const accessToken = tokenResponse.data.access_token;
 
-  // Обновляем переменную access_granted через PATCH-запрос по Telegram user_id
-  await axios.patch(
-    `https://api.sendpulse.com/telegram/contacts/${userId}`,
-    {
-      variables: [
-        {
-          id: "access_granted", // ID переменной в SendPulse
-          value: "true"
-        }
-      ]
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
+  // Обновляем переменную через PATCH-запрос по Telegram ID (user_id)
+  await axios.patch(`https://api.sendpulse.com/telegram/contacts/${userId}`, {
+    variables: [
+      {
+        id: "access_granted",  // именно ID переменной
+        value: "true"
       }
+    ]
+  }, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
     }
-  );
+  });
 
-  console.log("✅ access_granted успешно обновлена для user_id:", userId);
+  console.log("✅ Переменная access_granted обновлена через PATCH для user_id:", userId);
 } catch (error) {
-  console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
+  console.error("❌ Ошибка при обновлении переменной через PATCH:", error.response?.data || error.message);
 }
-  }
+
 
   res.send("OK");
 });

@@ -54,22 +54,36 @@ async function getContactIdByUserId(userId, accessToken) {
 
 // Set variable access_granted = true
 async function grantAccess(contactId, accessToken) {
-  await axios.post(
-    "https://api.sendpulse.com/telegram/contacts/setVariable",
-    {
-      bot_id:         BOT_ID,
-      contact_id:     contactId,
-      variable_name:  "access_granted",
-      variable_value: "true"
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      }
+  // 1) Собираем объект payload
+  const payload = {
+    bot_id:         BOT_ID,
+    contact_id:     contactId,
+    variable_name:  "access_granted",
+    variable_value: "true"
+  };
+
+  // 2) Собираем объект конфигурации с заголовками
+  const config = {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
     }
+  };
+
+  // 3) Выводим в лог, что именно пойдёт на SendPulse
+  console.log("→ setVariable payload:", JSON.stringify(payload));
+  console.log("→ setVariable headers:", JSON.stringify(config.headers));
+
+  // 4) Делаем запрос
+  const response = await axios.post(
+    "https://api.sendpulse.com/telegram/contacts/setVariable",
+    payload,
+    config
   );
-  console.log("✅ Переменная access_granted обновлена для contact_id:", contactId);
+
+  // 5) Лог успеха и тело ответа
+  console.log("← setVariable response status:", response.status);
+  console.log("← setVariable response data:", JSON.stringify(response.data));
 }
 
 // === Routes ===

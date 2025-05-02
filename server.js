@@ -50,14 +50,22 @@ async function getContactIdByUserId(userId, accessToken) {
 
 // Set variable access_granted = true
 async function grantAccess(contactId, accessToken) {
-  await axios.post("https://api.sendpulse.com/telegram/contacts/setVariable", {
-    bot_id:     BOT_ID,
-    contact_id: contactId,
-    name:       "access_granted",
-    value:      "true"
-  }, {
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-  });
+  await axios.post(
+    "https://api.sendpulse.com/telegram/contacts/setVariable",
+    {
+      bot_id:         BOT_ID,
+      contact_id:     contactId,
+      variable_name:  "access_granted",
+      variable_value: "true"
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  console.log("✅ Переменная access_granted обновлена для contact_id:", contactId);
 }
 
 // === Routes ===

@@ -92,6 +92,7 @@ app.post("/payment/callback", async (req, res) => {
     console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
 
     try {
+      // ШАГ 1 — Получаем access_token SendPulse
       const tokenResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
         grant_type: "client_credentials",
         client_id: "d5615cc69aee8a5f67251bb12bf8231c",
@@ -100,20 +101,37 @@ app.post("/payment/callback", async (req, res) => {
 
       const accessToken = tokenResponse.data.access_token;
 
-      await axios.post("https://api.sendpulse.com/telegram/contacts/setVariable", {
-  contact_id: String(userId),
-  variable_name: "access_granted",
-  variable_value: "true"
-}, {
-  headers: {
-    Authorization: `Bearer ${accessToken}`,
-    "Content-Type": "application/json"
-  }
-});
+      // ШАГ 2 — Ищем contact_id по переменной user_id
+      const searchResponse = await axios.get(`https://api.sendpulse.com/telegram/contacts?limit=1000`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
 
+      const contact = searchResponse.data.data.find(c => c.variables?.user_id == userId);
 
+      if (!contact) {
+        throw new Error(`Контакт с user_id=${userId} не найден`);
+      }
 
-      console.log("✅ access_granted обновлена для user_id:", userId);
+      const contactId = contact.id;
+
+      // ШАГ 3 — Обновляем переменную access_granted = true
+      await axios.patch(`https://api.sendpulse.com/telegram/contacts/${contactId}`, {
+        variables: [
+          {
+            id: "access_granted", // это ID переменной
+            value: "true"
+          }
+        ]
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      console.log("✅ Переменная access_granted обновлена для user_id:", userId);
     } catch (error) {
       console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
     }

@@ -101,7 +101,7 @@ app.post("/payment/callback", async (req, res) => {
       const accessToken = tokenResponse.data.access_token;
 
       await axios.post("https://api.sendpulse.com/telegram/contacts/setVariable", {
-  contact_id: Number(userId), // 👈 ОБЯЗАТЕЛЬНО число!
+  contact_id: String(userId),
   variable_name: "access_granted",
   variable_value: "true"
 }, {
@@ -110,6 +110,7 @@ app.post("/payment/callback", async (req, res) => {
     "Content-Type": "application/json"
   }
 });
+
 
 
       console.log("✅ access_granted обновлена для user_id:", userId);

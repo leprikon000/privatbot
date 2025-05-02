@@ -6,22 +6,46 @@ const axios = require("axios");
 const app = express();
 app.use(express.json());
 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const PASSWORD = "9a2d8957ab524df2889c0cca0f288f5e";
 const STORE_ID = "83B07D9AFC5046A9A45E";
 const RESPONSE_URL = "https://privatbot.onrender.com/payment/callback";
 const REDIRECT_URL = "https://t.me/master_izobiliia_bot";
 
-// 🔐 Подпись запроса
 function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
   const amountStr = String(amount * 100);
   const priceStr = String(product.price * 100);
   const productString = product.name + product.count + priceStr;
 
   const baseString = PASSWORD + STORE_ID + orderId + amountStr + partsCount + merchantType + RESPONSE_URL + REDIRECT_URL + productString + PASSWORD;
+
   return crypto.createHash("sha1").update(baseString).digest("base64");
 }
 
-// 🔁 Создание платежа
+async function getContactIdByUserId(userId, accessToken) {
+  const response = await axios.get("https://api.sendpulse.com/telegram/contacts", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  const contact = response.data.data.find(c => c.variables?.user_id == userId);
+  return contact ? contact.id : null;
+}
+
+async function updateAccessGranted(contactId, accessToken) {
+  await axios.post("https://api.sendpulse.com/customers/set-variable", {
+    contact_id: contactId,
+    variable: {
+      name: "access_granted",
+      value: "true"
+    }
+  }, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    }
+  });
+}
+
 app.post("/create-payment", async (req, res) => {
   const { orderId, amount, partsCount, tariffName } = req.body;
 
@@ -74,7 +98,6 @@ app.post("/create-payment", async (req, res) => {
   }
 });
 
-// 🔔 Callback от ПриватБанка
 app.post("/payment/callback", async (req, res) => {
   const data = req.body;
 
@@ -92,7 +115,6 @@ app.post("/payment/callback", async (req, res) => {
     console.log(`🎉 Оплата прошла от пользователя ${data.orderId}`);
 
     try {
-      // ШАГ 1 — Получаем access_token SendPulse
       const tokenResponse = await axios.post("https://api.sendpulse.com/oauth/access_token", {
         grant_type: "client_credentials",
         client_id: "d5615cc69aee8a5f67251bb12bf8231c",
@@ -101,39 +123,18 @@ app.post("/payment/callback", async (req, res) => {
 
       const accessToken = tokenResponse.data.access_token;
 
-      // ШАГ 2 — Ищем contact_id по переменной user_id
-      const searchResponse = await axios.get(`https://api.sendpulse.com/telegram/contacts?limit=1000`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
+      const contactId = await getContactIdByUserId(userId, accessToken);
 
-      const contact = searchResponse.data.data.find(c => c.variables?.user_id == userId);
-
-      if (!contact) {
-        throw new Error(`Контакт с user_id=${userId} не найден`);
+      if (!contactId) {
+        console.error("❌ Contact not found по user_id:", userId);
+        return;
       }
 
-      const contactId = contact.id;
+      await updateAccessGranted(contactId, accessToken);
 
-      // ШАГ 3 — Обновляем переменную access_granted = true
-      await axios.patch(`https://api.sendpulse.com/telegram/contacts/${contactId}`, {
-        variables: [
-          {
-            id: "access_granted", // это ID переменной
-            value: "true"
-          }
-        ]
-      }, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      console.log("✅ Переменная access_granted обновлена для user_id:", userId);
+      console.log("✅ Переменная access_granted обновлена для contact_id:", contactId);
     } catch (error) {
-      console.error("❌ Ошибка при обновлении переменной access_granted:", error.response?.data || error.message);
+      console.error("❌ Ошибка:", error.response?.data || error.message);
     }
   }
 

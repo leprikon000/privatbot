@@ -101,17 +101,16 @@ app.post("/payment/callback", async (req, res) => {
       const accessToken = tokenResponse.data.access_token;
 
       await axios.post("https://api.sendpulse.com/telegram/contacts/setVariable", {
-        contact_id: userId,
-        variable: {
-          name: "access_granted",
-          value: "true"
-        }
-      }, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      });
+  contact_id: Number(userId), // 👈 ОБЯЗАТЕЛЬНО число!
+  variable_name: "access_granted",
+  variable_value: "true"
+}, {
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json"
+  }
+});
+
 
       console.log("✅ access_granted обновлена для user_id:", userId);
     } catch (error) {

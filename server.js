@@ -1,8 +1,8 @@
 // server.js
 
 const express = require("express");
-const crypto = require("crypto");
-const axios = require("axios");
+const crypto  = require("crypto");
+const axios   = require("axios");
 
 const app = express();
 app.use(express.json());
@@ -20,10 +20,22 @@ const BOT_ID                  = "6810f00c85e77658ef0b4a45";
 let cachedToken   = null;
 let tokenExpiresAt = 0;
 
-// Generate signature for PrivatBank create-payment
-function generateSignature({ orderId, amount }) {
-  const amountStr = String(Math.round(amount * 100));
-  const raw = PRIVAT_PASSWORD + STORE_ID + orderId + amountStr + PRIVAT_PASSWORD;
+// Generate signature for PrivatBank create-payment (partial payment)
+function generateSignature({ orderId, amount, partsCount, merchantType, product }) {
+  const amountStr   = String(Math.round(amount * 100));
+  const priceStr    = String(Math.round(product.price * 100));
+  const productStr  = product.name + product.count + priceStr;
+  // according to PP doc: include partsCount, merchantType, urls and product
+  const raw = PRIVAT_PASSWORD
+    + STORE_ID
+    + orderId
+    + amountStr
+    + partsCount
+    + merchantType
+    + RESPONSE_URL
+    + REDIRECT_URL
+    + productStr
+    + PRIVAT_PASSWORD;
   return crypto.createHash("sha1").update(raw).digest("base64");
 }
 
@@ -37,7 +49,6 @@ async function getSendPulseToken() {
     client_id:     SENDPULSE_CLIENT_ID,
     client_secret: SENDPULSE_CLIENT_SECRET
   });
-
   cachedToken   = res.data.access_token;
   tokenExpiresAt = now + (res.data.expires_in - 60) * 1000;
   return cachedToken;
@@ -45,14 +56,11 @@ async function getSendPulseToken() {
 
 // Find contact_id by user_id via getByVariable
 async function getContactId(userId, token) {
-  const res = await axios.get(
-    "https://api.sendpulse.com/telegram/contacts/getByVariable",
-    {
-      params: { bot_id: BOT_ID, variable_name: "user_id", variable_value: userId },
-      headers: { Authorization: `Bearer ${token}` }
-    }
-  );
-  return (res.data.data && res.data.data.length) ? res.data.data[0].id : null;
+  const res = await axios.get("https://api.sendpulse.com/telegram/contacts/getByVariable", {
+    params: { bot_id: BOT_ID, variable_name: "user_id", variable_value: userId },
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data.data?.[0]?.id || null;
 }
 
 // Set variable access_granted = true
@@ -70,16 +78,21 @@ async function grantAccess(contactId, token) {
   console.log("✅ access_granted set for", contactId);
 }
 
-// Create payment endpoint
+// Create payment endpoint for partial payment
 app.post("/create-payment", async (req, res) => {
-  const { orderId, amount } = req.body;
-  if (!orderId || !amount) return res.status(400).json({ success: false, error: "Missing parameters" });
+  const { orderId, amount, partsCount, tariffName } = req.body;
+  if (!orderId || !amount || !partsCount || !tariffName) {
+    return res.status(400).json({ success: false, error: "Missing parameters" });
+  }
 
-  const signature = generateSignature({ orderId, amount });
+  const product = { name: `Курс МАСТЕР ИЗОБИЛИЯ - ${tariffName}`, count: 1, price: amount };
+  const signature = generateSignature({ orderId, amount, partsCount, merchantType: "PP", product });
+  const payload = { storeId: STORE_ID, orderId, amount, partsCount, merchantType: "PP", products: [product], responseUrl: RESPONSE_URL, redirectUrl: REDIRECT_URL, signature };
+
   try {
     const { data } = await axios.post(
       "https://payparts2.privatbank.ua/ipp/v2/payment/create",
-      { storeId: STORE_ID, orderId, amount, signature },
+      payload,
       { headers: { "Content-Type": "application/json" } }
     );
     console.log("✅ PrivatBank response:", data);
@@ -93,19 +106,17 @@ app.post("/create-payment", async (req, res) => {
 // Payment callback endpoint
 app.post("/payment/callback", async (req, res) => {
   const data = req.body;
-
   // Validate signature
-  const baseSig = PRIVAT_PASSWORD + data.storeId + data.orderId + data.paymentState + (data.message || "") + PRIVAT_PASSWORD;
-  const expected = crypto.createHash("sha1").update(baseSig).digest("base64");
+  const rawSig = PRIVAT_PASSWORD + data.storeId + data.orderId + data.paymentState + (data.message || "") + PRIVAT_PASSWORD;
+  const expected = crypto.createHash("sha1").update(rawSig).digest("base64");
   if (expected !== data.signature) {
-    console.error("Invalid signature", data.signature);
+    console.error("Invalid callback signature", data.signature);
     return res.status(403).send("Invalid signature");
   }
 
-  // Reply OK immediately
+  // Respond immediately
   res.send("OK");
 
-  // Process success
   if (data.paymentState === "SUCCESS") {
     try {
       const userId    = data.orderId.split("_")[0];
